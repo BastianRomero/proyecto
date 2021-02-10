@@ -1,6 +1,7 @@
 // Proyecto1_fotografiar.cpp : Este archivo contiene la función "main". La ejecución del programa comienza y termina ahí.
 //
 
+
 #include "stdafx.h"
 #include <iostream>
 #include <stdio.h>
@@ -25,12 +26,16 @@
 
 #include<windows.h>
 
+
+
+
 using namespace std;
 using namespace Emergent;
 using namespace cv;
 
 #define SUCCESS 0
-#define MAX_FRAMES 100
+#define FRAME_RATE 30
+#define FRAME_RATE_2 60
 
 #define MAX_CAMERAS 4
 
@@ -44,11 +49,12 @@ using namespace cv;
 #define AG_SET_VAL    512
 #define AG_I_VAL      16
 
+#define EXPOSURE_VAL 1000
+
 char* next_token;
 
-void view_camera(CEmergentCamera* camera, CEmergentFrame* evtFrame, CEmergentCamera* camera2, CEmergentFrame* evtFrame2);
-void showImages(const String& window_name, int rows, int cols, int size, std::initializer_list<const Mat*> images, int pad);
-void getSquareImage(cv::InputArray img, cv::OutputArray dst, int size);
+void view_camera(char const* numCam, const String& window_name, CEmergentCamera* camera, CEmergentFrame* evtFrame, int frameRate);
+void configure_defaults(CEmergentCamera* camera);
 
 
 
@@ -57,13 +63,13 @@ int main()
     printf("Librerias cargadas con exito \n");
     cout << "Cargando Variable" << endl << endl;
 
-    CEmergentCamera camera, camera2;
-    struct EvtParamAttribute attribute, attribute2;
+    CEmergentCamera camera, camera2, camera3, camera4;
+    struct EvtParamAttribute attribute, attribute2, attribute3, attribute4;
     int ReturnVal = SUCCESS;
     unsigned int param_val_max, param_val_min, param_val_inc;
     unsigned int height_max, width_max;
     unsigned int height_final, width_final;
-    CEmergentFrame evtFrame, evtFrame2;
+    CEmergentFrame evtFrame, evtFrame2, evtFrame3, evtFrame4;
     char filename[100];
     char user[50];
     struct GigEVisionDeviceInfo deviceInfo[MAX_CAMERAS];
@@ -92,12 +98,14 @@ int main()
         printf("Open Camera 1: \t\tCamera Opened\n\n");
     }
 
+    configure_defaults(&camera);
+
     EVT_CameraGetUInt32ParamMax(&camera, "Height", &height_max);
     EVT_CameraGetUInt32ParamMax(&camera, "Width", &width_max);
     printf("Resolution: \t\t%d x %d\n", width_max, height_max);
 
     ReturnVal = EVT_CameraGetParamAttr(&camera, "Gain", &attribute);
-       
+
     if (attribute.dataType == EDataTypeUnsupported)
     {
         printf("CameraGetParamAttr: Error\n");
@@ -149,6 +157,19 @@ int main()
         printf("AutoGain Set: \t\tDisabled.\n\n");
     }
 
+
+    ///////////////
+   /* EVT_CameraGetUInt32ParamMax(&camera, "Exposure", &param_val_max);
+    printf("Exposure Max: \t\t%d\n", param_val_max);
+    EVT_CameraGetUInt32ParamMin(&camera, "Exposure", &param_val_min);
+    printf("Exposure Min: \t\t%d\n", param_val_min);
+    if (EXPOSURE_VAL >= param_val_min && EXPOSURE_VAL <= param_val_max)
+    {
+        EVT_CameraSetUInt32Param(&camera, "Exposure", EXPOSURE_VAL);
+        printf("Exposure Set: \t\t%d\n", EXPOSURE_VAL);
+    }*/
+    ////////////////
+
     ReturnVal = EVT_CameraOpenStream(&camera);
 
     if (ReturnVal != SUCCESS)
@@ -159,7 +180,7 @@ int main()
 
     evtFrame.size_x = width_max;
     evtFrame.size_y = height_max;
-    evtFrame.pixel_type = GVSP_PIX_MONO8;
+    evtFrame.pixel_type = GVSP_PIX_BAYGB8;
     EVT_AllocateFrameBuffer(&camera, &evtFrame, EVT_FRAME_BUFFER_ZERO_COPY);
     EVT_CameraQueueFrame(&camera, &evtFrame);
 
@@ -236,6 +257,20 @@ int main()
         printf("AutoGain Set: \t\tEnabled.\n");
     }
 
+    //////////////////////////
+
+   /* EVT_CameraGetUInt32ParamMax(&camera2, "Exposure", &param_val_max);
+    printf("Exposure Max: \t\t%d\n", param_val_max);
+    EVT_CameraGetUInt32ParamMin(&camera2, "Exposure", &param_val_min);
+    printf("Exposure Min: \t\t%d\n", param_val_min);
+    if (EXPOSURE_VAL >= param_val_min && EXPOSURE_VAL <= param_val_max)
+    {
+        EVT_CameraSetUInt32Param(&camera2, "Exposure", EXPOSURE_VAL);
+        printf("Exposure Set: \t\t%d\n", EXPOSURE_VAL);
+    }*/
+
+    ////////////////////////////
+
     ReturnVal = EVT_CameraOpenStream(&camera2);
     if (ReturnVal != SUCCESS)
     {
@@ -245,17 +280,271 @@ int main()
 
     evtFrame2.size_x = width_max;
     evtFrame2.size_y = height_max;
-    evtFrame2.pixel_type = GVSP_PIX_MONO8;
+    evtFrame2.pixel_type = GVSP_PIX_BGR8;
     EVT_AllocateFrameBuffer(&camera2, &evtFrame2, EVT_FRAME_BUFFER_ZERO_COPY);
     EVT_CameraQueueFrame(&camera2, &evtFrame2);
 
-    unsigned int frames_recd = 0;
-    // for (int frame_count = 0; frame_count < MAX_FRAMES; frame_count++)
-    for (;;)
+    // CAMARA 3
 
+    ReturnVal = EVT_CameraOpen(&camera3, &deviceInfo[2]);
+
+    if (ReturnVal != SUCCESS)
     {
+        printf("Open Camera 3: \t\tError. Exiting program.\n");
+        return ReturnVal;
+    }
+    else
+    {
+        printf("\t\tCAMERA 3 \n");
+        printf("Open Camera 3: \t\tCamera Opened\n\n");
+    }
+
+    EVT_CameraGetUInt32ParamMax(&camera3, "Height", &height_max);
+    EVT_CameraGetUInt32ParamMax(&camera3, "Width", &width_max);
+    printf("Resolution: \t\t%d x %d\n", width_max, height_max);
+
+    ReturnVal = EVT_CameraGetParamAttr(&camera3, "Gain", &attribute3);
+
+    if (attribute3.dataType == EDataTypeUnsupported)
+    {
+        printf("CameraGetParamAttr: Error\n");
+        return ReturnVal;
+    }
+    else
+    {
+        EVT_CameraGetUInt32ParamMax(&camera3, "Gain", &param_val_max);
+        printf("Gain Max: \t\t%d\n", param_val_max);
+        EVT_CameraGetUInt32ParamMin(&camera3, "Gain", &param_val_min);
+        printf("Gain Min: \t\t%d\n", param_val_min);
+        if (GAIN_VAL2 >= param_val_min && GAIN_VAL2 <= param_val_max)
+        {
+            EVT_CameraSetUInt32Param(&camera3, "Gain", GAIN_VAL2);
+            printf("Gain Set: \t\t%d\n", GAIN_VAL2);
+        }
+    }
+
+    ReturnVal = EVT_CameraGetParamAttr(&camera3, "Offset", &attribute3);
+
+    if (attribute2.dataType == EDataTypeUnsupported)
+    {
+        printf("CameraGetParamAttr: Error\n");
+        return ReturnVal;
+    }
+    else
+    {
+        EVT_CameraGetUInt32ParamMax(&camera3, "Offset", &param_val_max);
+        printf("Offset Max: \t\t%d\n", param_val_max);
+        EVT_CameraGetUInt32ParamMin(&camera3, "Offset", &param_val_min);
+        printf("Offset Min: \t\t%d\n", param_val_min);
+        if (OFFSET_VAL >= param_val_min && OFFSET_VAL <= param_val_max)
+        {
+            EVT_CameraSetUInt32Param(&camera3, "Offset", OFFSET_VAL);
+            printf("Offset Set: \t\t%d\n", OFFSET_VAL);
+        }
+    }
+
+    ReturnVal = EVT_CameraGetParamAttr(&camera3, "AutoGain", &attribute3);
+
+    if (attribute3.dataType == EDataTypeUnsupported)
+    {
+        printf("CameraGetParamAttr: Error\n");
+        return ReturnVal;
+    }
+    else
+    {
+        EVT_CameraSetBoolParam(&camera3, "AutoGain", FALSE);
+        printf("AutoGain Set: \t\tEnabled.\n");
+    }
+
+    //////////////////////////
+
+   /* EVT_CameraGetUInt32ParamMax(&camera2, "Exposure", &param_val_max);
+    printf("Exposure Max: \t\t%d\n", param_val_max);
+    EVT_CameraGetUInt32ParamMin(&camera2, "Exposure", &param_val_min);
+    printf("Exposure Min: \t\t%d\n", param_val_min);
+    if (EXPOSURE_VAL >= param_val_min && EXPOSURE_VAL <= param_val_max)
+    {
+        EVT_CameraSetUInt32Param(&camera2, "Exposure", EXPOSURE_VAL);
+        printf("Exposure Set: \t\t%d\n", EXPOSURE_VAL);
+    }*/
+
+    ////////////////////////////
+
+    ReturnVal = EVT_CameraOpenStream(&camera3);
+    if (ReturnVal != SUCCESS)
+    {
+        printf("CameraOpenStream: Error\n");
+        return ReturnVal;
+    }
+
+    evtFrame3.size_x = width_max;
+    evtFrame3.size_y = height_max;
+    evtFrame3.pixel_type = GVSP_PIX_BGR8;
+    EVT_AllocateFrameBuffer(&camera3, &evtFrame3, EVT_FRAME_BUFFER_ZERO_COPY);
+    EVT_CameraQueueFrame(&camera3, &evtFrame3);
+
+    //CAMARA 4
+    ReturnVal = EVT_CameraOpen(&camera4, &deviceInfo[3]);
+
+    if (ReturnVal != SUCCESS)
+    {
+        printf("Open Camera 4: \t\tError. Exiting program.\n");
+        return ReturnVal;
+    }
+    else
+    {
+        printf("\t\tCAMERA 4 \n");
+        printf("Open Camera 4: \t\tCamera Opened\n\n");
+    }
+
+    EVT_CameraGetUInt32ParamMax(&camera4, "Height", &height_max);
+    EVT_CameraGetUInt32ParamMax(&camera4, "Width", &width_max);
+    printf("Resolution: \t\t%d x %d\n", width_max, height_max);
+
+    ReturnVal = EVT_CameraGetParamAttr(&camera4, "Gain", &attribute4);
+
+    if (attribute4.dataType == EDataTypeUnsupported)
+    {
+        printf("CameraGetParamAttr: Error\n");
+        return ReturnVal;
+    }
+    else
+    {
+        EVT_CameraGetUInt32ParamMax(&camera4, "Gain", &param_val_max);
+        printf("Gain Max: \t\t%d\n", param_val_max);
+        EVT_CameraGetUInt32ParamMin(&camera4, "Gain", &param_val_min);
+        printf("Gain Min: \t\t%d\n", param_val_min);
+        if (GAIN_VAL2 >= param_val_min && GAIN_VAL2 <= param_val_max)
+        {
+            EVT_CameraSetUInt32Param(&camera4, "Gain", GAIN_VAL2);
+            printf("Gain Set: \t\t%d\n", GAIN_VAL2);
+        }
+    }
+
+    ReturnVal = EVT_CameraGetParamAttr(&camera4, "Offset", &attribute4);
+
+    if (attribute4.dataType == EDataTypeUnsupported)
+    {
+        printf("CameraGetParamAttr: Error\n");
+        return ReturnVal;
+    }
+    else
+    {
+        EVT_CameraGetUInt32ParamMax(&camera4, "Offset", &param_val_max);
+        printf("Offset Max: \t\t%d\n", param_val_max);
+        EVT_CameraGetUInt32ParamMin(&camera4, "Offset", &param_val_min);
+        printf("Offset Min: \t\t%d\n", param_val_min);
+        if (OFFSET_VAL >= param_val_min && OFFSET_VAL <= param_val_max)
+        {
+            EVT_CameraSetUInt32Param(&camera4, "Offset", OFFSET_VAL);
+            printf("Offset Set: \t\t%d\n", OFFSET_VAL);
+        }
+    }
+
+    ReturnVal = EVT_CameraGetParamAttr(&camera4, "AutoGain", &attribute4);
+
+    if (attribute4.dataType == EDataTypeUnsupported)
+    {
+        printf("CameraGetParamAttr: Error\n");
+        return ReturnVal;
+    }
+    else
+    {
+        EVT_CameraSetBoolParam(&camera4, "AutoGain", FALSE);
+        printf("AutoGain Set: \t\tEnabled.\n");
+    }
+
+    //////////////////////////
+
+   /* EVT_CameraGetUInt32ParamMax(&camera2, "Exposure", &param_val_max);
+    printf("Exposure Max: \t\t%d\n", param_val_max);
+    EVT_CameraGetUInt32ParamMin(&camera2, "Exposure", &param_val_min);
+    printf("Exposure Min: \t\t%d\n", param_val_min);
+    if (EXPOSURE_VAL >= param_val_min && EXPOSURE_VAL <= param_val_max)
+    {
+        EVT_CameraSetUInt32Param(&camera2, "Exposure", EXPOSURE_VAL);
+        printf("Exposure Set: \t\t%d\n", EXPOSURE_VAL);
+    }*/
+
+    ////////////////////////////
+
+    ReturnVal = EVT_CameraOpenStream(&camera4);
+    if (ReturnVal != SUCCESS)
+    {
+        printf("CameraOpenStream: Error\n");
+        return ReturnVal;
+    }
+
+    evtFrame4.size_x = width_max;
+    evtFrame4.size_y = height_max;
+    evtFrame4.pixel_type = GVSP_PIX_BGR8;
+    EVT_AllocateFrameBuffer(&camera4, &evtFrame4, EVT_FRAME_BUFFER_ZERO_COPY);
+    EVT_CameraQueueFrame(&camera4, &evtFrame4);
+    
+
+    EVT_CameraSetUInt32Param(&camera, "FrameRate", FRAME_RATE);
+    EVT_CameraSetUInt32Param(&camera2, "FrameRate", FRAME_RATE);
+    EVT_CameraSetUInt32Param(&camera3, "FrameRate", FRAME_RATE);
+    EVT_CameraSetUInt32Param(&camera4, "FrameRate", FRAME_RATE);
+
+    /*printf("Trigger Mode: \t\tContinuous, HardwareTrigger, GPI4\n");
+    printf("Grabbing Frames...\n");
+
+    EVT_CameraSetEnumParam(&camera, "TriggerMode", "On");
+    //pagina 9 attribute_manual
+    EVT_CameraSetEnumParam(&camera, "TriggerSource", "Hardware");
+    //pagina 10 attribute_manual
+
+    //Set the GPI hardware triggering mode to use GPI_4 and select rising edge to start exp and falling edge 
+    //to end exposure. Error check omitted for clarity.
+    EVT_CameraSetEnumParam(&camera, "GPI_Start_Exp_Mode", "GPI_4");
+    EVT_CameraSetEnumParam(&camera, "GPI_Start_Exp_Event", "Rising_Edge");
+    EVT_CameraSetEnumParam(&camera, "GPI_End_Exp_Mode", "GPI_4");
+    EVT_CameraSetEnumParam(&camera, "GPI_End_Exp_Event", "Falling_Edge");
+
+    EVT_CameraSetEnumParam(&camera, "GPO_0_Mode", "Test_Generator");
+    EVT_CameraSetUInt32Param(&camera, "TG_Frame_Time", 33333); //30fps
+    EVT_CameraSetUInt32Param(&camera, "TG_High_Time", 1000);   //1000us
+
+    EVT_CameraSetUInt32Param(&camera, "Trigger_Delay", 1000);   //1000us*/
+
+
+  EVT_CameraSetEnumParam(&camera2, "TriggerMode", "On");
+    //pagina 9 attribute_manual
+    EVT_CameraSetEnumParam(&camera2, "TriggerSource", "Hardware");
+    //pagina 10 attribute_manual
+
+    //Set the GPI hardware triggering mode to use GPI_4 and select rising edge to start exp and falling edge 
+    //to end exposure. Error check omitted for clarity.
+    EVT_CameraSetEnumParam(&camera2, "GPI_Start_Exp_Mode", "GPI_4");
+    EVT_CameraSetEnumParam(&camera2, "GPI_Start_Exp_Event", "Rising_Edge");
+    EVT_CameraSetEnumParam(&camera2, "GPI_End_Exp_Mode", "GPI_4");
+    EVT_CameraSetEnumParam(&camera2, "GPI_End_Exp_Event", "Falling_Edge");
+
+    EVT_CameraSetEnumParam(&camera2, "GPO_0_Mode", "Test_Generator");
+    EVT_CameraSetUInt32Param(&camera2, "TG_Frame_Time", 33333); //30fps
+    EVT_CameraSetUInt32Param(&camera2, "TG_High_Time", 1000);   //1000us
+
+    EVT_CameraSetUInt32Param(&camera, "Trigger_Delay", 1000);   //1000us
+  
+
+    unsigned int frames_recd = 0;
+     int MAX_FRAMES = 500;
+
+  for  (int frames = 0; frames < MAX_FRAMES; frames++)
+//for (;;)
+    {
+
+    
+        char first[] = "D:/images/myimage_1.bmp";
+        char second[] = "D:/images/myimage_2.bmp";
+        char three[] = "D:/images/myimage_3.bmp";
+        char four[] = "D:/images/myimage_4.bmp";
+
         ReturnVal = EVT_CameraExecuteCommand(&camera, "AcquisitionStart");
         EVT_CameraExecuteCommand(&camera2, "AcquisitionStart");
+        EVT_CameraExecuteCommand(&camera3, "AcquisitionStart");
+        EVT_CameraExecuteCommand(&camera4, "AcquisitionStart");
 
         //Tell camera to start streaming
         if (ReturnVal != SUCCESS)
@@ -266,6 +555,8 @@ int main()
 
         err = EVT_CameraGetFrame(&camera, &evtFrame, EVT_INFINITE);
         EVT_CameraGetFrame(&camera2, &evtFrame2, EVT_INFINITE);
+        EVT_CameraGetFrame(&camera3, &evtFrame3, EVT_INFINITE);
+        EVT_CameraGetFrame(&camera4, &evtFrame4, EVT_INFINITE);
 
         if (err)
             printf("EVT_CameraGetFrame Error!\n");
@@ -274,124 +565,101 @@ int main()
 
         EVT_CameraExecuteCommand(&camera, "AcquisitionStop");
         EVT_CameraExecuteCommand(&camera2, "AcquisitionStop");
+        EVT_CameraExecuteCommand(&camera3, "AcquisitionStop");
+        EVT_CameraExecuteCommand(&camera4, "AcquisitionStop");
+
+      //if(waitKey(10) == 27) break;
+
+       /*view_camera(first,"Camara 1",&camera,&evtFrame,FRAME_RATE);
+       view_camera(second,"Camara 2",&camera2, &evtFrame2,FRAME_RATE);
+       view_camera(three, "Camara 3", &camera3, &evtFrame3, FRAME_RATE);
+       view_camera(four, "Camara 4", &camera4, &evtFrame4, FRAME_RATE);
+       */
 
 
-        if (waitKey(10) == 27) break;
+       sprintf_s(filename, "D:/files/myimage_%d.tif", frames_recd);
+       EVT_FrameSave(&evtFrame, filename, EVT_FILETYPE_TIF, EVT_ALIGN_NONE);
+       EVT_CameraQueueFrame(&camera, &evtFrame);  //Now re-queue.
+       sprintf_s(filename, "D:/files2/myimage_%d.tif", frames_recd);
+       EVT_FrameSave(&evtFrame2, filename, EVT_FILETYPE_TIF, EVT_ALIGN_NONE);
+       EVT_CameraQueueFrame(&camera2, &evtFrame2);  //Now re-queue.
 
-        view_camera(&camera,&evtFrame, &camera2, &evtFrame2);
-        
+       sprintf_s(filename, "D:/files3/myimage_%d.tif", frames_recd);
+       EVT_FrameSave(&evtFrame3, filename, EVT_FILETYPE_TIF, EVT_ALIGN_NONE);
+       EVT_CameraQueueFrame(&camera3, &evtFrame3);  //Now re-queue.
+       sprintf_s(filename, "D:/files4/myimage_%d.tif", frames_recd);
+       EVT_FrameSave(&evtFrame4, filename, EVT_FILETYPE_TIF, EVT_ALIGN_NONE);
+       EVT_CameraQueueFrame(&camera4, &evtFrame4);  //Now re-queue.
 
+       printf(".");
+       
+    }
 }
 
-}
 
-void view_camera(CEmergentCamera* camera, CEmergentFrame* evtFrame, CEmergentCamera* camera2, CEmergentFrame* evtFrame2) {
 
-    EVT_FrameSave(evtFrame, "D:/images/myimage_1.bmp", EVT_FILETYPE_BMP, EVT_ALIGN_NONE);
-    EVT_FrameSave(evtFrame2, "D:/images/myimage_2.bmp", EVT_FILETYPE_BMP, EVT_ALIGN_NONE);
 
+
+void view_camera(char const* path, const String& window_name, CEmergentCamera* camera, CEmergentFrame* evtFrame, int frameRate) {
+
+    short h = 646;
+    short w = 485;
+
+    EVT_FrameSave(evtFrame, path, EVT_FILETYPE_BMP, EVT_ALIGN_NONE);
     EVT_CameraQueueFrame(camera, evtFrame);  //Now re-queue.
-    EVT_CameraQueueFrame(camera2, evtFrame2);
+
+    int fps = 1000 / frameRate;
 
     Mat fra;
-    fra = imread("D:/images/myimage_1.bmp", IMREAD_COLOR);
-   // resizeWindow("Camera 1", h, w);
-    //namedWindow("Camera 1", WINDOW_NORMAL);
-    //imshow("Camera 1", fra);
-    Mat fra2;
-    fra2 = imread("D:/images/myimage_2.bmp", IMREAD_COLOR);
-    Mat fra33 = Mat::zeros(cv::Size(808, 606), CV_64FC1);
-    imwrite("D:/images/myimage_3.bmp",fra33);
-    Mat fra44 = Mat::zeros(cv::Size(808, 606), CV_64FC1);
-    imwrite("D:/images/myimage_4.bmp",fra44);
-    Mat fra3, fra4;
-    fra3 = imread("D:/images/myimage_3.bmp", IMREAD_COLOR);
-    fra4 = imread("D:/images/myimage_4.bmp", IMREAD_COLOR);
 
-
-
-    showImages("Camaras", 2, 2, 646, { &fra, &fra2,&fra3,&fra4 }, 5);
-
-   /* Mat fra2;
-    fra2 = imread("D:/images/myimage_2.bmp", IMREAD_COLOR);
-    resizeWindow("Camera 2", h, w);
-    namedWindow("Camera 2", WINDOW_NORMAL);
-    imshow("Camera 2", fra2);*/
-
-    //waitKey(fps);
-
-
-}
-
-
-void showImages(const String& window_name, int rows, int cols, int size, std::initializer_list<const Mat*> images, int pad )
-{
-
-    int h = 1000;
-    int w = 800;
-
-    if (pad <= 0) pad = 0;
-
-    int width = size * cols + ((cols + 1) * pad);
-    int height = size * rows + ((rows + 1) * pad);
-
-    Mat dst = Mat(height, width, CV_8UC3, Scalar::all(255));
-
-    int x = 0, y = 0, cols_counter = 0, img_counter = 0;
-
-    for (auto& img : images) {
-        Mat roi = dst(Rect(x + pad, y + pad, size, size));
-
-        getSquareImage(*img, roi, size);
-        
-        x += roi.cols + pad;
-
-
-        if (++cols_counter == cols) {
-            cols_counter = x = 0;
-            y += roi.rows + pad;
-        }
-
-        if (++img_counter >= rows * cols) break;
-    }
-   
-    int fps = 1000 / 25;
+    fra = imread(path, IMREAD_COLOR);
     resizeWindow(window_name, h, w);
     namedWindow(window_name, WINDOW_NORMAL);
-    imshow(window_name, dst);
+    imshow(window_name, fra);
+
     waitKey(fps);
+
 
 }
 
 
-void getSquareImage(cv::InputArray img, cv::OutputArray dst, int size)
+void configure_defaults(CEmergentCamera* camera)
 {
-    if (size < 2) size = 2;
-    int width = img.cols(), height = img.rows();
+    unsigned int width_max, height_max, param_val_max;
+    const unsigned long enumBufferSize = 1000;
+    unsigned long enumBufferSizeReturn = 0;
+    char enumBuffer[enumBufferSize];
 
-    cv::Mat square = dst.getMat();
+    //Order is important as param max/mins get updated.
+    EVT_CameraGetEnumParamRange(camera, "PixelFormat", enumBuffer, enumBufferSize, &enumBufferSizeReturn);
+    char* enumMember = strtok_s(enumBuffer, ",", &next_token);
+    EVT_CameraSetEnumParam(camera, "PixelFormat", enumMember);
 
-    square.setTo(Scalar::all(0));
+    EVT_CameraSetUInt32Param(camera, "FrameRate", 30);
 
-    int max_dim = (width >= height) ? width : height;
-    float scale = ((float)size) / max_dim;
+    EVT_CameraSetUInt32Param(camera, "OffsetX", 0);
+    EVT_CameraSetUInt32Param(camera, "OffsetY", 0);
 
-    cv::Rect roi;
+    EVT_CameraGetUInt32ParamMax(camera, "Width", &width_max);
+    EVT_CameraSetUInt32Param(camera, "Width", width_max);
 
-    if (width >= height)
-    {
-        roi.width = size;
-        roi.x = 0;
-        roi.height = (int)(height * scale);
-        roi.y = (size - roi.height) / 2;
-    }
-    else
-    {
-        roi.y = 0;
-        roi.height = size;
-        roi.width = (int)(width * scale);
-        roi.x = (size - roi.width) / 2;
-    }
+    EVT_CameraGetUInt32ParamMax(camera, "Height", &height_max);
+    EVT_CameraSetUInt32Param(camera, "Height", height_max);
 
-    cv::resize(img, square(roi), roi.size());
+    EVT_CameraSetEnumParam(camera, "AcquisitionMode", "Continuous");
+    EVT_CameraSetUInt32Param(camera, "AcquisitionFrameCount", 1);
+    EVT_CameraSetEnumParam(camera, "TriggerSelector", "AcquisitionStart");
+    EVT_CameraSetEnumParam(camera, "TriggerMode", "Off");
+    EVT_CameraSetEnumParam(camera, "TriggerSource", "Software");
+    EVT_CameraSetEnumParam(camera, "BufferMode", "Off");
+    EVT_CameraSetUInt32Param(camera, "BufferNum", 0);
+
+    EVT_CameraGetUInt32ParamMax(camera, "GevSCPSPacketSize", &param_val_max);
+    EVT_CameraSetUInt32Param(camera, "GevSCPSPacketSize", param_val_max);
+
+    EVT_CameraSetUInt32Param(camera, "Gain", 256);
+    EVT_CameraSetUInt32Param(camera, "Offset", 0);
+
+    EVT_CameraSetBoolParam(camera, "LUTEnable", false);
+    EVT_CameraSetBoolParam(camera, "AutoGain", false);
 }
